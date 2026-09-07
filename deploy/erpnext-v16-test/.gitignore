@@ -1,0 +1,10 @@
+.env
+.credentials
+manifest.env
+artifacts/
+build-context/
+certs/
+*.key
+*.zip
+*.tar*
+*.sha256

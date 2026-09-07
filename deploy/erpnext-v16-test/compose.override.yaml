@@ -1,0 +1,42 @@
+services:
+  frontend:
+    image: ${CUSTOM_IMAGE}:${CUSTOM_TAG}
+    ports:
+      - 127.0.0.1:8080:8080
+    logging: &json_file_logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  backend:
+    image: ${CUSTOM_IMAGE}:${CUSTOM_TAG}
+    logging: *json_file_logging
+
+  websocket:
+    image: ${CUSTOM_IMAGE}:${CUSTOM_TAG}
+    logging: *json_file_logging
+
+  queue-short:
+    image: ${CUSTOM_IMAGE}:${CUSTOM_TAG}
+    logging: *json_file_logging
+
+  queue-long:
+    image: ${CUSTOM_IMAGE}:${CUSTOM_TAG}
+    logging: *json_file_logging
+
+  scheduler:
+    image: ${CUSTOM_IMAGE}:${CUSTOM_TAG}
+    logging: *json_file_logging
+
+  db:
+    image: ${MARIADB_IMAGE}
+    logging: *json_file_logging
+
+  redis-cache:
+    image: ${REDIS_IMAGE}
+    logging: *json_file_logging
+
+  redis-queue:
+    image: ${REDIS_IMAGE}
+    logging: *json_file_logging
