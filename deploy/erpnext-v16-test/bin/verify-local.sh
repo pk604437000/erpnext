@@ -68,7 +68,7 @@ check_tls_fingerprint() {
   actual=$(
     openssl s_client -connect 127.0.0.1:443 -servername "$SITE_NAME" -showcerts </dev/null 2>/dev/null \
       | openssl x509 -noout -fingerprint -sha256 \
-      | sed 's/^SHA256 Fingerprint=//'
+      | sed 's/^[Ss][Hh][Aa]256 [Ff]ingerprint=//'
   )
   [[ -n "$actual" ]] || die "无法读取 127.0.0.1:443 的证书指纹"
   if [[ "$actual" != "$expected_tls_fingerprint" ]]; then
