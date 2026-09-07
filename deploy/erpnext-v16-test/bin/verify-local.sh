@@ -6,6 +6,7 @@ ENV_FILE="$ROOT_DIR/.env"
 COMPOSE_FILE=${ERPNEXT_V16_TEST_COMPOSE_FILE:-$ROOT_DIR/compose.yaml}
 SITE_NAME=${SITE_NAME:-erptest.jxmhfc.com}
 MANIFEST_FILE="$ROOT_DIR/manifest.env"
+EXPECTED_TLS_FINGERPRINT='B0:22:27:35:9F:B8:4B:E1:F2:E8:FA:51:4A:82:E0:56:BF:91:D5:59:4F:F4:7D:DA:07:D6:CB:F3:D4:50:72:FC'
 
 load_env() {
   for file in "$ENV_FILE" "$MANIFEST_FILE"; do
@@ -62,50 +63,15 @@ check_frontend_http() {
     http://127.0.0.1:8080/ >/dev/null
 }
 
-normalize_fingerprint() {
-  tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]'
-}
-
-expected_fingerprint() {
-  local candidate file line value
-  for candidate in \
-    "${TLS_FINGERPRINT_SHA256:-}" \
-    "${TLS_FINGERPRINT:-}" \
-    "${SSL_FINGERPRINT_SHA256:-}" \
-    "${SSL_FINGERPRINT:-}" \
-    "${CERT_FINGERPRINT_SHA256:-}" \
-    "${CERT_FINGERPRINT:-}" \
-    "${EXPECTED_TLS_FINGERPRINT:-}"
-  do
-    if [[ -n "${candidate:-}" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-
-  for file in "$ENV_FILE" "$MANIFEST_FILE"; do
-    [[ -f "$file" ]] || continue
-    line=$(grep -E '^(TLS_FINGERPRINT_SHA256|TLS_FINGERPRINT|SSL_FINGERPRINT_SHA256|SSL_FINGERPRINT|CERT_FINGERPRINT_SHA256|CERT_FINGERPRINT|EXPECTED_TLS_FINGERPRINT)=' "$file" | head -n1 || true)
-    if [[ -n "$line" ]]; then
-      value=${line#*=}
-      printf '%s\n' "$value"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
 check_tls_fingerprint() {
-  local expected actual
-  expected=$(expected_fingerprint) || die "未找到期望的 TLS 指纹变量"
+  local actual
   actual=$(
     openssl s_client -connect 127.0.0.1:443 -servername "$SITE_NAME" -showcerts </dev/null 2>/dev/null \
       | openssl x509 -noout -fingerprint -sha256 \
       | sed 's/^SHA256 Fingerprint=//'
   )
   [[ -n "$actual" ]] || die "无法读取 127.0.0.1:443 的证书指纹"
-  if [[ "$(printf '%s' "$actual" | normalize_fingerprint)" != "$(printf '%s' "$expected" | normalize_fingerprint)" ]]; then
+  if [[ "$actual" != "$EXPECTED_TLS_FINGERPRINT" ]]; then
     die "TLS 指纹不匹配"
   fi
 }
@@ -117,8 +83,7 @@ check_https_resolve() {
 }
 
 check_bench_doctor() {
-  cd "$ROOT_DIR"
-  bench --site "$SITE_NAME" doctor
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T backend bench --site "$SITE_NAME" doctor
 }
 
 main() {
