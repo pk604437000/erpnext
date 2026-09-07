@@ -6,7 +6,6 @@ ENV_FILE="$ROOT_DIR/.env"
 COMPOSE_FILE=${ERPNEXT_V16_TEST_COMPOSE_FILE:-$ROOT_DIR/compose.yaml}
 SITE_NAME=${SITE_NAME:-erptest.jxmhfc.com}
 MANIFEST_FILE="$ROOT_DIR/manifest.env"
-EXPECTED_TLS_FINGERPRINT='B0:22:27:35:9F:B8:4B:E1:F2:E8:FA:51:4A:82:E0:56:BF:91:D5:59:4F:F4:7D:DA:07:D6:CB:F3:D4:50:72:FC'
 
 load_env() {
   for file in "$ENV_FILE" "$MANIFEST_FILE"; do
@@ -64,14 +63,15 @@ check_frontend_http() {
 }
 
 check_tls_fingerprint() {
-  local actual
+  local actual expected_tls_fingerprint
+  readonly expected_tls_fingerprint='B0:22:27:35:9F:B8:4B:E1:F2:E8:FA:51:4A:82:E0:56:BF:91:D5:59:4F:F4:7D:DA:07:D6:CB:F3:D4:50:72:FC'
   actual=$(
     openssl s_client -connect 127.0.0.1:443 -servername "$SITE_NAME" -showcerts </dev/null 2>/dev/null \
       | openssl x509 -noout -fingerprint -sha256 \
       | sed 's/^SHA256 Fingerprint=//'
   )
   [[ -n "$actual" ]] || die "无法读取 127.0.0.1:443 的证书指纹"
-  if [[ "$actual" != "$EXPECTED_TLS_FINGERPRINT" ]]; then
+  if [[ "$actual" != "$expected_tls_fingerprint" ]]; then
     die "TLS 指纹不匹配"
   fi
 }
