@@ -5,6 +5,7 @@ conf.py
 latest_updates.json
 .wnf-lang-status
 *.egg-info
+.worktrees/
 dist/
 erpnext/public/dist
 erpnext/docs/current
