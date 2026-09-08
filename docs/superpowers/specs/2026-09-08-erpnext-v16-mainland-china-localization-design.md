@@ -27,7 +27,7 @@ Frappe V16（官方源码）
 
 ### 3.1 仓库和版本管理
 
-`erpnext_china` 与 `company_erp` 均为独立 Git 仓库，生产/测试构建均使用明确 commit，不跟踪移动分支。ERPNext 仓库只保存部署组合、版本清单、验收脚本和文档；不修改 `erpnext/` 下的官方实现。
+`erpnext_china` 与 `company_erp` 均为独立 Git 仓库，生产/测试构建均使用明确 commit，不跟踪移动分支。`company_erp` 的私有远端为 `git@github.com:pk604437000/company_erp.git`。ERPNext 仓库只保存部署组合、版本清单、验收脚本和文档；不修改 `erpnext/` 下的官方实现。
 
 日常维护统一以各仓库的 `version-16` 为基线：ERPNext 仓库的 `version-16` 只承载官方 V16 源码与本设计/部署文档；`company_erp` 仓库的 `version-16` 承载公司扩展代码。不将 `company_erp` 的 Python、fixtures 或前端资源合并到 ERPNext 核心仓库。
 
@@ -39,6 +39,8 @@ Frappe V16（官方源码）
 4. `bench --site erptest.jxmhfc.com execute company_erp.setup.configure_china_defaults`
 
 部署记录保存四个 App 的仓库 URL、分支、commit、构建镜像摘要及 `bench version` 输出。后续升级先在隔离测试站点运行迁移和完整验收，再替换固定 commit。
+
+对于私有 `company_erp` 仓库，测试/生产构建节点须使用仅限该仓库读取权限的 Deploy Key，并在 `known_hosts` 固定 GitHub 主机公钥。私钥和访问令牌不得进入 `apps.json`、构建参数、镜像层、日志或 Git。完成该凭据配置前，测试环境保持在已经验证的本地 `deploy-pin` 输入；不得把该临时输入描述为远端仓库部署来源。
 
 ### 3.2 company_erp 的职责
 
