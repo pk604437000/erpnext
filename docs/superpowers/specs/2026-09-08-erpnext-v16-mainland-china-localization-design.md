@@ -29,6 +29,8 @@ Frappe V16（官方源码）
 
 `erpnext_china` 与 `company_erp` 均为独立 Git 仓库，生产/测试构建均使用明确 commit，不跟踪移动分支。ERPNext 仓库只保存部署组合、版本清单、验收脚本和文档；不修改 `erpnext/` 下的官方实现。
 
+日常维护统一以各仓库的 `version-16` 为基线：ERPNext 仓库的 `version-16` 只承载官方 V16 源码与本设计/部署文档；`company_erp` 仓库的 `version-16` 承载公司扩展代码。不将 `company_erp` 的 Python、fixtures 或前端资源合并到 ERPNext 核心仓库。
+
 `company_erp` 的 `pyproject.toml` 声明 Frappe/ERPNext `>=16.21.0,<17.0.0`，并在 App 元数据中声明依赖 `erpnext_china`。构建镜像时将两个 App 的已验证源码放入 Build Context；创建站点后严格按以下顺序安装：
 
 1. `erpnext`
