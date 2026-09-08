@@ -4,7 +4,7 @@
 
 **Goal:** 创建独立的 `company_erp` App，在 ERPNext V16 测试站点可重复地配置中国大陆默认值，并验证 `erpnext_china` 的财务本地化基线。
 
-**Architecture:** `company_erp` 是 ERPNext 仓库之外的独立 App 仓库，只以公开 Frappe API 读取和写入单例设置、Global Defaults 与 Currency。部署仓库只记录固定版本和离线 Build Context 的三个 App 源码；站点先安装 `erpnext_china`，再执行 `company_erp` 的显式、幂等配置命令。
+**Architecture:** `company_erp` 是 ERPNext 仓库之外的独立 App 仓库，只以公开 Frappe API 读取和写入单例设置、Global Defaults 与 Currency。测试站点由 Docker Compose 运行，所有 Bench 操作通过 `docker compose exec -T backend bench` 执行；部署仓库只记录固定版本和本地 Build Context 的三个 App 源码，站点先安装 `erpnext_china`，再执行 `company_erp` 的显式、幂等配置命令。
 
 **Tech Stack:** Python 3.14、Frappe V16、ERPNext V16、FrappeTestCase、Bench、Docker Compose、MariaDB。
 
@@ -15,7 +15,7 @@
 - 不修改 `erpnext/` 或 Frappe 官方源码；不使用 monkey patch 或 `override_doctype_class`。
 - `company_erp` 在 `/Users/yzf/Project/personal/源代码/company_erp` 独立管理，并固定到明确 Git commit。
 - 目标依赖是 Frappe/ERPNext `>=16.21.0,<17.0.0`；`erpnext_china` 必须已安装后才允许配置。
-- 测试站点为 `erptest.jxmhfc.com`；所有运行态检查、安装和配置命令都必须显式带 `--site erptest.jxmhfc.com`。
+- 测试站点为 `erptest.jxmhfc.com`；所有运行态检查、安装和配置命令都必须在 `/opt/erpnext-v16-test` 通过 `docker compose exec -T backend bench --site erptest.jxmhfc.com` 执行。
 - 最终值必须是 China、`zh`、Asia/Shanghai、`yyyy-mm-dd`、`HH:mm:ss`、`#,###.##`、Monday、CNY、Currency Precision 2、Float Precision 4，以及 CNY 的 `#,###.##`。
 - 配置命令必须支持 `dry_run=True`，只报告差异；正常执行必须只更新差异字段，并让异常中断事务。
 - 所有新行为先写失败测试，再写最小实现；每个任务使用中文 Conventional Commit 独立提交。
@@ -76,8 +76,8 @@ class TestAppMetadata(FrappeTestCase):
 - [ ] **Step 3: 运行测试并确认因未安装或顺序不符而失败**
 
 ```bash
-cd /opt/erpnext-v16-test/bench
-bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_app_metadata
+cd /opt/erpnext-v16-test
+docker compose exec -T backend bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_app_metadata
 ```
 
 预期：测试失败并明确指出 `company_erp` 尚未安装，或 `erpnext_china` 尚未安装。
@@ -102,9 +102,9 @@ erpnext = ">=16.21.0,<17.0.0"
 - [ ] **Step 5: 安装 App 并验证测试通过**
 
 ```bash
-cd /opt/erpnext-v16-test/bench
-bench --site erptest.jxmhfc.com install-app company_erp
-bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_app_metadata
+cd /opt/erpnext-v16-test
+docker compose exec -T backend bench --site erptest.jxmhfc.com install-app company_erp
+docker compose exec -T backend bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_app_metadata
 ```
 
 预期：`test_company_erp_is_installed_after_erpnext_china` 通过；若 `erpnext_china` 尚未安装，停止并先安装它，不得绕过依赖检查。
@@ -200,8 +200,8 @@ class TestChinaDefaults(FrappeTestCase):
 - [ ] **Step 2: 运行测试并确认失败原因是模块尚不存在**
 
 ```bash
-cd /opt/erpnext-v16-test/bench
-bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_setup
+cd /opt/erpnext-v16-test
+docker compose exec -T backend bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_setup
 ```
 
 预期：导入 `company_erp.setup` 失败，而不是测试环境错误。
@@ -275,8 +275,8 @@ def get_china_defaults_diff() -> list[dict[str, object]]:
 - [ ] **Step 4: 运行失败测试，确认只剩写入函数未实现**
 
 ```bash
-cd /opt/erpnext-v16-test/bench
-bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_setup
+cd /opt/erpnext-v16-test
+docker compose exec -T backend bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_setup
 ```
 
 预期：依赖测试与 dry-run 测试通过，`test_diff_is_empty_after_apply` 因配置未写入失败。
@@ -310,10 +310,10 @@ def configure_china_defaults(dry_run: bool = False) -> list[dict[str, object]]:
 - [ ] **Step 6: 运行完整配置测试并检查 dry-run/正常写入**
 
 ```bash
-cd /opt/erpnext-v16-test/bench
-bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_setup
-bench --site erptest.jxmhfc.com execute company_erp.setup.configure_china_defaults --kwargs '{"dry_run": true}'
-bench --site erptest.jxmhfc.com execute company_erp.setup.configure_china_defaults
+cd /opt/erpnext-v16-test
+docker compose exec -T backend bench --site erptest.jxmhfc.com run-tests --app company_erp --module company_erp.tests.test_setup
+docker compose exec -T backend bench --site erptest.jxmhfc.com execute company_erp.setup.configure_china_defaults --kwargs '{"dry_run": true}'
+docker compose exec -T backend bench --site erptest.jxmhfc.com execute company_erp.setup.configure_china_defaults
 ```
 
 预期：测试全部通过；第一次命令只输出差异，第二次命令输出空数组，第三次重复执行仍输出空数组。
@@ -370,14 +370,14 @@ python3 -m json.tool deploy/erpnext-v16-test/apps.json >/dev/null
 #!/usr/bin/env bash
 set -euo pipefail
 
-bench_dir=/opt/erpnext-v16-test/bench
+compose_dir=/opt/erpnext-v16-test
 site_name=erptest.jxmhfc.com
 
-cd "$bench_dir"
-bench --site "$site_name" list-apps | rg -x 'erpnext_china|company_erp'
-bench --site "$site_name" execute company_erp.setup.get_china_defaults_diff | rg -x '\[\]'
-bench --site "$site_name" console --execute "import frappe; assert frappe.db.get_value('Currency', 'CNY', 'number_format') == '#,###.##'"
-bench --site "$site_name" run-tests --app company_erp --module company_erp.tests.test_setup
+cd "$compose_dir"
+docker compose exec -T backend bench --site "$site_name" list-apps | rg -x 'erpnext_china|company_erp'
+docker compose exec -T backend bench --site "$site_name" execute company_erp.setup.get_china_defaults_diff | rg -x '\[\]'
+docker compose exec -T backend bench --site "$site_name" execute frappe.db.get_value --args '["Currency", "CNY", "number_format"]' | rg -x '#,###.##'
+docker compose exec -T backend bench --site "$site_name" run-tests --app company_erp --module company_erp.tests.test_setup
 ```
 
 脚本不得写入数据库、重建资产或调用迁移。
@@ -413,27 +413,27 @@ git commit -m "chore: 接入中国本地化应用基线"
 - [ ] **Step 1: 写入应失败的验收检查**
 
 ```bash
-cd /opt/erpnext-v16-test/bench
-bench --site erptest.jxmhfc.com execute erpnext_china.chart_of_accounts.custom_accounts.custom_account.get_charts_for_country --kwargs '{"country": "China", "with_standard": true}'
+cd /opt/erpnext-v16-test
+docker compose exec -T backend bench --site erptest.jxmhfc.com execute erpnext_china.chart_of_accounts.custom_accounts.custom_account.get_charts_for_country --kwargs '{"country": "China", "with_standard": true}'
 ```
 
 预期：在 `erpnext_china` 未安装或其白名单方法不可调用时失败；不得以直接修改 ERPNext 科目表代码解决。
 
 - [ ] **Step 2: 创建 China/CNY 测试公司并选择中国科目表**
 
-通过 Desk 或 `bench --site erptest.jxmhfc.com console` 创建名称 `中国化验收测试公司`、国家 China、货币 CNY、会计科目表 `小企业会计准则` 的公司。记录模板名、公司缩写和创建时间到验收文档；不要把管理员密码、数据库密码写入文档。
+通过 Desk 创建名称 `中国化验收测试公司`、国家 China、货币 CNY、会计科目表 `小企业会计准则` 的公司。记录模板名、公司缩写和创建时间到验收文档；不要把管理员密码、数据库密码写入文档。
 
 - [ ] **Step 3: 实现只读财务验收脚本**
 
 脚本必须检查以下项目，任一缺失立即退出非零：
 
 ```bash
-bench --site "$site_name" list-apps | rg -x 'erpnext_china'
-bench --site "$site_name" execute erpnext_china.chart_of_accounts.custom_accounts.custom_account.get_charts_for_country --kwargs '{"country":"China","with_standard":true}' | rg '会计'
-bench --site "$site_name" console --execute "import frappe; assert frappe.db.exists('Sales Taxes and Charges Template', {'company': '中国化验收测试公司'})"
-bench --site "$site_name" console --execute "import frappe; assert frappe.db.exists('Report', 'Fin Balance Sheet')"
-bench --site "$site_name" console --execute "import frappe; assert frappe.db.exists('Report', 'Fin Profit and Loss Statement')"
-bench --site "$site_name" console --execute "import frappe; assert frappe.db.exists('DocType', 'Cash Flow')"
+docker compose exec -T backend bench --site "$site_name" list-apps | rg -x 'erpnext_china'
+docker compose exec -T backend bench --site "$site_name" execute erpnext_china.chart_of_accounts.custom_accounts.custom_account.get_charts_for_country --kwargs '{"country":"China","with_standard":true}' | rg '会计'
+docker compose exec -T backend bench --site "$site_name" execute frappe.db.exists --args '["Sales Taxes and Charges Template", {"company": "中国化验收测试公司"}]' | rg -x 'True'
+docker compose exec -T backend bench --site "$site_name" execute frappe.db.exists --args '["Report", "Fin Balance Sheet"]' | rg -x 'True'
+docker compose exec -T backend bench --site "$site_name" execute frappe.db.exists --args '["Report", "Fin Profit and Loss Statement"]' | rg -x 'True'
+docker compose exec -T backend bench --site "$site_name" execute frappe.db.exists --args '["DocType", "Cash Flow"]' | rg -x 'True'
 ```
 
 报表名固定为 `Fin Balance Sheet`、`Fin Profit and Loss Statement`，直接法现金流量表入口固定为 `Cash Flow` DocType。脚本只能读数据。
